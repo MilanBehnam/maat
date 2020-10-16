@@ -3,14 +3,16 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/lireza/lib/configuring"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	netUrl "net/url"
-	"strings"
 	"sync"
 	"sync/atomic"
 )
+
+var configFile = flag.String("config", "./configuration/maat.json", "Configuration file")
 
 //Backend encapsulate all necessary data for each peer.
 type Backend struct {
@@ -29,9 +31,35 @@ type ServerPool struct {
 var serverPool ServerPool
 
 func main() {
-	port, servers := getFlags()
-	createServerPool(servers)
-	startServer(port)
+	flag.Parse()
+	json := getConfiguration()
+	createServerPool(getPeersList(json))
+	startServer(getPortFromConfig(json))
+}
+
+func getPeersList(json *configuring.Config) *[]string {
+	servers, err := json.Get("peers").SliceOfString()
+	if err != nil {
+		panic(err)
+	}
+	return &servers
+}
+
+func getPortFromConfig(json *configuring.Config) *int {
+	port, err := json.Get("port").Int()
+	if err != nil {
+		panic(err)
+	}
+	return &port
+}
+
+func getConfiguration() *configuring.Config {
+	config := configuring.New()
+	json, err := config.LoadJSON(*configFile)
+	if err != nil {
+		panic(err)
+	}
+	return json
 }
 
 func createServerPool(servers *[]string) {
@@ -45,16 +73,9 @@ func createServerPool(servers *[]string) {
 
 func errHandler(w http.ResponseWriter, r *http.Request, err error) {
 	//TODO add some retries here.
+	fmt.Println(err)
 	serverPool.AliveByUrl(r.URL, false)
 	loadBalancer(w, r)
-}
-
-func getFlags() (*int, *[]string) {
-	serversString := flag.String("b", "", "Get all backends(separate urls with ',')")
-	port := flag.Int("p", 8080, "Set load Balancer port(default is 8080)")
-	flag.Parse()
-	servers := strings.Split(*serversString, ",")
-	return port, &servers
 }
 
 func startServer(port *int) {
@@ -124,7 +145,7 @@ func (b *Backend) setAlive(alive bool) {
 func (sp *ServerPool) AliveByUrl(url *netUrl.URL, alive bool) {
 	for _, backend := range sp.Backends {
 		if backend.url == url {
-			backend.setAlive(false)
+			backend.setAlive(alive)
 			return
 		}
 

@@ -1,0 +1,6 @@
+{
+  "peers": [
+    "http://localhost:4040"
+  ],
+  "port": 8909
+}
