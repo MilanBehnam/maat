@@ -32,7 +32,7 @@ var serverPool ServerPool
 
 func main() {
 	flag.Parse()
-	json := getConfiguration()
+	json := getConfiguration(configFile)
 	createServerPool(getPeersList(json))
 	startServer(getPortFromConfig(json))
 }
@@ -53,9 +53,9 @@ func getPortFromConfig(json *configuring.Config) *int {
 	return &port
 }
 
-func getConfiguration() *configuring.Config {
+func getConfiguration(filename *string) *configuring.Config {
 	config := configuring.New()
-	json, err := config.LoadJSON(*configFile)
+	json, err := config.LoadJSON(*filename)
 	if err != nil {
 		panic(err)
 	}
